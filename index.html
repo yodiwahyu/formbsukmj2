@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Formulir Data Karyawan</title>
+<title>Formulir Data Karyawan PT Kanindo Makmur Jaya Factory 2</title>
 
 <style>
 :root{
@@ -17,8 +17,16 @@ body{margin:0;padding:20px;background:linear-gradient(180deg,#eef6ef,#f8faf8);co
 .container{max-width:800px;margin:0 auto}
 .header{text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;
   padding:26px 20px;margin-bottom:20px;box-shadow:0 8px 25px rgba(45,90,60,.08)}
-.header h1{margin:0 0 6px;font-size:24px;color:#28663d}
+.form-logo{display:block;width:88px;height:88px;object-fit:contain;margin:0 auto 12px}
+.header h1{margin:0 0 5px;font-size:24px;color:#28663d}
+.header h2{margin:0 0 8px;font-size:16px;color:var(--primary-dark);font-weight:700}
 .header p{margin:0;color:var(--muted);font-size:14px}
+.final-warning{margin:24px 0 15px;padding:14px 16px;border:1px solid #fecaca;border-left:5px solid #dc2626;
+  border-radius:10px;background:#fff7f7;color:#991b1b;font-size:13px;line-height:1.6}
+.confirm-box{padding:14px 15px;border:1px solid var(--border-dark);border-radius:10px;background:#f7fbf7}
+.confirm-box .check{margin:0}
+.confirm-box .error{margin-left:26px}
+@media(max-width:640px){.form-logo{width:76px;height:76px}.header h1{font-size:20px}.header h2{font-size:14px}}
 .card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:25px;
   box-shadow:0 7px 24px rgba(45,90,60,.07)}
 .section-title{font-size:18px;margin:28px 0 18px;padding:0 0 10px 12px;border-bottom:2px solid #e4eee6;
@@ -70,7 +78,13 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <div class="container">
 
   <div class="header">
+    <img
+      src="https://raw.githubusercontent.com/yodiwahyu/berkas/main/logo%20kanindo.png"
+      alt="Logo PT Kanindo Makmur Jaya"
+      class="form-logo"
+    >
     <h1>Formulir Data Karyawan</h1>
+    <h2>PT Kanindo Makmur Jaya - Factory 2</h2>
     <p>Silakan isi data Anda dengan lengkap dan benar sesuai dokumen resmi.</p>
   </div>
 
@@ -251,6 +265,20 @@ button:disabled{opacity:.6;cursor:not-allowed}
       <div class="error"></div>
     </div>
 
+    <div class="final-warning">
+      <strong>PERHATIAN:</strong><br>
+      Silahkan cek kembali hasil inputannya. Kesalahan data berpotensi mengakibatkan BSU tidak cair.
+      Pastikan seluruh data sudah sesuai dengan KTP, KK, dan buku tabungan.
+    </div>
+
+    <div class="form-group confirm-box" data-field="data_benar">
+      <label class="check">
+        <input type="checkbox" id="data_benar" name="data_benar">
+        <span>Saya menyatakan data yang saya isi sudah benar dan sesuai dengan dokumen resmi.</span>
+      </label>
+      <div class="error"></div>
+    </div>
+
     <div class="btn-row">
       <button type="button" class="btn-primary" id="nextBtn">Lanjutkan</button>
     </div>
@@ -285,10 +313,8 @@ button:disabled{opacity:.6;cursor:not-allowed}
 </div>
 
 <script>
-/* =================================================
-   KONFIGURASI  -> ganti dengan URL Web App Apps Script
-================================================= */
-const API_URL = "PASTE_URL_WEB_APP_APPS_SCRIPT_DI_SINI";
+
+const API_URL = "https://script.google.com/macros/s/AKfycbyL35LneMPU5gRmnCV8FP05q57UCnuM4LRNcLPu4uXV03AAM86GzUzAKwQIxRbRSGK-oA/exec";
 
 const $ = (id) => document.getElementById(id);
 const val = (id) => $(id).value.replace(/\s+/g, " ").trim();
@@ -374,7 +400,8 @@ const rules = {
   provinsi: (v) => v ? "" : "Provinsi wajib dipilih.",
   kabupaten: (v) => v ? "" : "Kabupaten/Kota wajib dipilih.",
   kecamatan: (v) => v ? "" : "Kecamatan wajib dipilih.",
-  kelurahan: (v) => v ? "" : "Desa/Kelurahan wajib dipilih."
+  kelurahan: (v) => v ? "" : "Desa/Kelurahan wajib dipilih.",
+  data_benar: () => $("data_benar").checked ? "" : "Anda harus menyatakan bahwa data yang diisi sudah benar."
 };
 
 function showError(id, msg) {
@@ -431,18 +458,25 @@ $("pendidikan").addEventListener("change", () => {
 });
 
 /* =================================================
-   WILAYAH (via Apps Script -> wilayah.id)
+   WILAYAH INDONESIA - API WILAYAH.ID
+   Data wilayah diambil langsung dari wilayah.id.
+   Penyimpanan formulir tetap melalui Apps Script (apiPost).
 ================================================= */
+const WILAYAH_API = "https://wilayah.id/api";
+
 const wil = {
-  provinsi:  { el: $("provinsi"),  type: "province", next: "kabupaten", label: "provinsi" },
-  kabupaten: { el: $("kabupaten"), type: "regency",  next: "kecamatan", label: "kabupaten / kota" },
-  kecamatan: { el: $("kecamatan"), type: "district", next: "kelurahan", label: "kecamatan" },
-  kelurahan: { el: $("kelurahan"), type: "village",  next: null,        label: "desa / kelurahan" }
+  provinsi:  { el: $("provinsi"),  endpoint: "provinces", next: "kabupaten", label: "provinsi" },
+  kabupaten: { el: $("kabupaten"), endpoint: "regencies", next: "kecamatan", label: "kabupaten / kota" },
+  kecamatan: { el: $("kecamatan"), endpoint: "districts", next: "kelurahan", label: "kecamatan" },
+  kelurahan: { el: $("kelurahan"), endpoint: "villages", next: null, label: "desa / kelurahan" }
 };
+
 const wilOrder = ["provinsi", "kabupaten", "kecamatan", "kelurahan"];
 const wilPrompt = {
-  provinsi: "Pilih provinsi", kabupaten: "Pilih kabupaten / kota",
-  kecamatan: "Pilih kecamatan", kelurahan: "Pilih desa / kelurahan"
+  provinsi: "Pilih provinsi",
+  kabupaten: "Pilih kabupaten / kota",
+  kecamatan: "Pilih kecamatan",
+  kelurahan: "Pilih desa / kelurahan"
 };
 const wilWait = {
   kabupaten: "Pilih provinsi terlebih dahulu",
@@ -450,20 +484,34 @@ const wilWait = {
   kelurahan: "Pilih kecamatan terlebih dahulu"
 };
 
-function fillSelect(el, text, data) {
+// Penanda request mencegah hasil request lama menimpa pilihan terbaru.
+const wilRequest = {
+  provinsi: 0,
+  kabupaten: 0,
+  kecamatan: 0,
+  kelurahan: 0
+};
+
+function fillSelect(el, placeholder, data) {
   el.innerHTML = "";
-  el.add(new Option(text, ""));
-  (data || []).forEach((d) => el.add(new Option(d.name, d.id)));
+  el.add(new Option(placeholder, ""));
+  (data || []).forEach((item) => {
+    el.add(new Option(item.name, item.code));
+  });
 }
 
 function resetBelow(key) {
   const idx = wilOrder.indexOf(key);
+
   for (let i = idx + 1; i < wilOrder.length; i++) {
     const k = wilOrder[i];
-    fillSelect(wil[k].el, wilWait[k]);
+    wilRequest[k]++;
+    fillSelect(wil[k].el, wilWait[k], []);
     wil[k].el.disabled = true;
     showError(k, "");
   }
+
+  regionError("");
 }
 
 function regionError(msg) {
@@ -472,642 +520,76 @@ function regionError(msg) {
   box.style.display = msg ? "block" : "none";
 }
 
-async function loadChildren(key, parentId) {
+async function fetchWilayah(endpoint) {
+  const url = WILAYAH_API + "/" + endpoint + ".json";
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Accept": "application/json" }
+  });
+
+  if (!response.ok) {
+    throw new Error("Server wilayah.id memberikan respons HTTP " + response.status + ".");
+  }
+
+  const json = await response.json();
+
+  if (!json || !Array.isArray(json.data)) {
+    throw new Error("Format data wilayah tidak sesuai.");
+  }
+
+  return json.data;
+}
+
+async function loadChildren(key, parentCode) {
   const w = wil[key];
-  fillSelect(w.el, "Memuat " + w.label + "...");
+  const requestId = ++wilRequest[key];
+
+  let endpoint = w.endpoint;
+  if (key !== "provinsi") {
+    endpoint += "/" + encodeURIComponent(parentCode);
+  }
+
+  fillSelect(w.el, "Memuat " + w.label + "...", []);
   w.el.disabled = true;
   regionError("");
+
   try {
-    const data = await apiGet({ action: "wilayah", type: w.type, id: parentId || "" });
+    const data = await fetchWilayah(endpoint);
+
+    // Abaikan hasil jika pengguna sudah mengganti wilayah induk.
+    if (requestId !== wilRequest[key]) return;
+
     fillSelect(w.el, wilPrompt[key], data);
     w.el.disabled = false;
   } catch (err) {
-    fillSelect(w.el, "Gagal memuat " + w.label);
-    regionError("Gagal mengambil data " + w.label + ": " + err.message + ". Muat ulang halaman lalu coba lagi.");
+    if (requestId !== wilRequest[key]) return;
+
+    fillSelect(w.el, "Gagal memuat " + w.label, []);
+    w.el.disabled = true;
+    regionError(
+      "Gagal mengambil data " + w.label + ". " +
+      (err && err.message ? err.message : "Terjadi kesalahan.") +
+      " Silakan muat ulang halaman atau coba kembali."
+    );
+    console.error("Wilayah API Error:", err);
   }
 }
 
+// Ketika pilihan induk berubah, kosongkan semua pilihan di bawahnya.
 wilOrder.slice(0, 3).forEach((key) => {
   wil[key].el.addEventListener("change", () => {
     resetBelow(key);
-    const id = wil[key].el.value;
-    if (id) loadChildren(wil[key].next, id);
-  });
-});
 
-loadChildren("provinsi", "");
+    const parentCode = wil[key].el.value;
+    validateField(key);
 
-const selText = (id) => {
-  const el = $(id);
-  return el.value ? el.options[el.selectedIndex].textContent : "";
-};
-
-/* =================================================
-   DATA & PREVIEW
-================================================= */
-function collect() {
-  return {
-    website: $("form").website.value,
-    id_card: val("id_card"),
-    nama: val("nama"),
-    nik: val("nik"),
-    bank: val("bank"),
-    no_rekening: val("no_rekening"),
-    nama_rekening: val("nama_rekening"),
-    rekening_milik_sendiri: $("rekening_milik_sendiri").checked,
-    agama: val("agama"),
-    agama_lainnya: val("agama_lainnya"),
-    pendidikan: val("pendidikan"),
-    pendidikan_lainnya: val("pendidikan_lainnya"),
-    asal_sekolah: val("asal_sekolah"),
-    jurusan: val("jurusan"),
-    kontak_darurat: val("kontak_darurat"),
-    kk: val("kk"),
-    ibu_kandung: val("ibu_kandung"),
-    rt: val("rt"),
-    rw: val("rw"),
-    provinsi_nama: selText("provinsi"),
-    kabupaten_nama: selText("kabupaten"),
-    kecamatan_nama: selText("kecamatan"),
-    kelurahan_nama: selText("kelurahan")
-  };
-}
-
-function buildPreview(d) {
-  const rows = [
-    ["Nomor ID Card", d.id_card],
-    ["Nama Lengkap (KTP)", d.nama],
-    ["Nomor KTP", d.nik],
-    ["Bank Himbara", d.bank],
-    ["Nomor Rekening", d.no_rekening],
-    ["Nama Pemilik Rekening", d.nama_rekening],
-    ["Agama", d.agama === "Lainnya" ? d.agama_lainnya : d.agama],
-    ["Pendidikan Terakhir", d.pendidikan === "Lainnya" ? d.pendidikan_lainnya : d.pendidikan],
-    ["Nama Sekolah", d.asal_sekolah],
-    ["Jurusan", d.jurusan],
-    ["Kontak Darurat", d.kontak_darurat],
-    ["Nomor KK", d.kk],
-    ["Nama Ibu Kandung", d.ibu_kandung],
-    ["RT / RW", d.rt + " / " + d.rw],
-    ["Desa/Kelurahan", d.kelurahan_nama],
-    ["Kecamatan", d.kecamatan_nama],
-    ["Kabupaten/Kota", d.kabupaten_nama],
-    ["Provinsi", d.provinsi_nama]
-  ];
-  const box = $("previewContent");
-  box.innerHTML = "";
-  rows.forEach(([l, v]) => {
-    const row = document.createElement("div"); row.className = "prow";
-    const a = document.createElement("div"); a.className = "plabel"; a.textContent = l;
-    const b = document.createElement("div"); b.className = "pvalue"; b.textContent = v || "-";
-    row.append(a, b);
-    box.appendChild(row);
-  });
-}
-
-/* =================================================
-   NAVIGASI & SUBMIT
-================================================= */
-const show = (card) => {
-  ["formCard", "previewCard", "successCard"].forEach((id) => $(id).classList.toggle("hidden", id !== card));
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
-
-$("nextBtn").addEventListener("click", () => {
-  if (!validateAll()) {
-    const first = document.querySelector(".form-group.invalid");
-    if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
-  }
-  buildPreview(collect());
-  $("submitError").style.display = "none";
-  show("previewCard");
-});
-
-$("backBtn").addEventListener("click", () => show("formCard"));
-
-$("submitBtn").addEventListener("click", async () => {
-  const btn = $("submitBtn"), loading = $("submitLoading"), err = $("submitError");
-  err.style.display = "none";
-  btn.disabled = true;
-  loading.style.display = "block";
-
-  try {
-    if (API_URL.startsWith("PASTE_")) throw new Error("API_URL belum diisi di index.html.");
-    const result = await apiPost(collect());
-    if (result && result.success) {
-      show("successCard");
-    } else {
-      err.textContent = (result && result.message) || "Data gagal disimpan.";
-      err.style.display = "block";
+    if (parentCode) {
+      loadChildren(wil[key].next, parentCode);
     }
-  } catch (e) {
-    err.textContent = "Terjadi kesalahan: " + e.message;
-    err.style.display = "block";
-  } finally {
-    btn.disabled = false;
-    loading.style.display = "none";
-  }
-});
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Formulir Data Karyawan</title>
-
-<style>
-:root{
-  --primary:#2f7d4a; --primary-dark:#24643a; --primary-light:#e8f5ec;
-  --danger:#dc2626; --text:#26352b; --muted:#6b7c70;
-  --border:#d9e5dc; --border-dark:#c6d7ca; --white:#fff;
-}
-*{box-sizing:border-box}
-body{margin:0;padding:20px;background:linear-gradient(180deg,#eef6ef,#f8faf8);color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;line-height:1.5}
-.container{max-width:800px;margin:0 auto}
-.header{text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;
-  padding:26px 20px;margin-bottom:20px;box-shadow:0 8px 25px rgba(45,90,60,.08)}
-.header h1{margin:0 0 6px;font-size:24px;color:#28663d}
-.header p{margin:0;color:var(--muted);font-size:14px}
-.card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:25px;
-  box-shadow:0 7px 24px rgba(45,90,60,.07)}
-.section-title{font-size:18px;margin:28px 0 18px;padding:0 0 10px 12px;border-bottom:2px solid #e4eee6;
-  border-left:4px solid var(--primary);color:#2d6840}
-.section-title:first-of-type{margin-top:5px}
-.form-group{margin-bottom:18px}
-label{display:block;font-size:14px;font-weight:600;margin-bottom:7px}
-.req{color:var(--danger)}
-input[type=text],input[type=tel],select{width:100%;padding:12px 13px;border:1px solid var(--border-dark);
-  border-radius:10px;font-size:14px;outline:none;background:#fff;color:var(--text)}
-input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(47,125,74,.12)}
-input:disabled,select:disabled,input[readonly]{background:#edf3ee;color:#718078}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:15px}
-.hint{margin-top:5px;font-size:12px;color:var(--muted)}
-.error{display:none;margin-top:6px;color:var(--danger);font-size:12px}
-.form-group.invalid .error{display:block}
-.form-group.invalid input,.form-group.invalid select{border-color:var(--danger);background:#fffafa}
-.notice{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;
-  padding:13px 15px;font-size:13px;margin-bottom:18px}
-.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;cursor:pointer}
-.check input{margin-top:3px;width:auto}
-.alert{display:none;margin-bottom:15px;padding:10px 12px;border-radius:8px;background:#fef2f2;color:var(--danger);font-size:13px;white-space:pre-line}
-.btn-row{display:flex;gap:10px;margin-top:25px}
-button{border:none;border-radius:10px;padding:13px 20px;font-size:14px;font-weight:700;cursor:pointer;color:#fff}
-.btn-primary{flex:1;background:linear-gradient(135deg,#3b8d55,#286d40)}
-.btn-secondary{flex:1;background:linear-gradient(135deg,#f59e0b,#d97706)}
-button:disabled{opacity:.6;cursor:not-allowed}
-.loading{display:none;padding:11px;margin-top:15px;border-radius:9px;background:var(--primary-light);
-  border:1px solid #cfe5d4;color:var(--primary-dark);text-align:center;font-size:13px}
-.hidden{display:none!important}
-.hp{position:absolute;left:-9999px;opacity:0;height:0;width:0}
-.preview{border:1px solid var(--border);border-radius:11px;overflow:hidden;margin:15px 0}
-.prow{display:grid;grid-template-columns:210px 1fr;border-bottom:1px solid var(--border)}
-.prow:last-child{border-bottom:none}
-.plabel{padding:11px;background:#edf4ee;font-weight:600;font-size:13px}
-.pvalue{padding:11px;font-size:13px;word-break:break-word}
-.success{text-align:center;padding:30px 10px}
-.success .icon{width:70px;height:70px;margin:0 auto 20px;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;background:#dcfce7;color:#2f855a;font-size:35px;font-weight:bold}
-@media(max-width:640px){
-  body{padding:8px}.card{padding:17px}.two{grid-template-columns:1fr;gap:0}
-  .prow{grid-template-columns:1fr}.btn-row{flex-direction:column}
-  input,select{font-size:16px!important}
-}
-</style>
-</head>
-
-<body>
-<div class="container">
-
-  <div class="header">
-    <h1>Formulir Data Karyawan</h1>
-    <p>Silakan isi data Anda dengan lengkap dan benar sesuai dokumen resmi.</p>
-  </div>
-
-  <!-- ================= FORM ================= -->
-  <div class="card" id="formCard">
-  <form id="form" novalidate autocomplete="off">
-
-    <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off"><!-- honeypot -->
-
-    <h2 class="section-title">Data Identitas</h2>
-
-    <div class="form-group" data-field="id_card">
-      <label>Nomor ID Card <span class="req">*</span></label>
-      <input type="tel" id="id_card" name="id_card" class="num" inputmode="numeric" maxlength="10" placeholder="10 digit angka">
-      <div class="hint">Terdiri dari 10 angka.</div>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="nama">
-      <label>Nama Lengkap Sesuai KTP <span class="req">*</span></label>
-      <input type="text" id="nama" name="nama" placeholder="Masukkan nama lengkap">
-      <div class="hint">Minimal 3 huruf, tanpa angka.</div>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="nik">
-      <label>Nomor KTP <span class="req">*</span></label>
-      <input type="tel" id="nik" name="nik" class="num" inputmode="numeric" maxlength="16" placeholder="16 digit NIK">
-      <div class="error"></div>
-    </div>
-
-    <h2 class="section-title">Rekening Bank Himbara</h2>
-
-    <div class="notice">
-      <strong>⚠️ Penting:</strong> Rekening bank harus <strong>milik sendiri</strong>, tidak boleh milik orang lain.
-    </div>
-
-    <div class="form-group" data-field="bank">
-      <label>Bank Himbara <span class="req">*</span></label>
-      <select id="bank" name="bank">
-        <option value="">Pilih bank</option>
-        <option>Bank Rakyat Indonesia (BRI)</option>
-        <option>Bank Negara Indonesia (BNI)</option>
-        <option>Bank Mandiri</option>
-        <option>Bank Tabungan Negara (BTN)</option>
-        <option>Bank Syariah Indonesia (BSI)</option>
-      </select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="no_rekening">
-      <label>Nomor Rekening <span class="req">*</span></label>
-      <input type="tel" id="no_rekening" name="no_rekening" class="num" inputmode="numeric" maxlength="20" placeholder="Nomor rekening (angka saja)">
-      <div class="hint">6–20 angka, tanpa spasi atau tanda hubung.</div>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="nama_rekening">
-      <label>Nama Lengkap Pemilik Rekening <span class="req">*</span></label>
-      <input type="text" id="nama_rekening" name="nama_rekening" placeholder="Sesuai buku tabungan / ATM">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="rekening_milik_sendiri">
-      <label class="check">
-        <input type="checkbox" id="rekening_milik_sendiri" name="rekening_milik_sendiri">
-        <span>Saya menyatakan bahwa rekening ini adalah <strong>milik saya sendiri</strong>.</span>
-      </label>
-      <div class="error"></div>
-    </div>
-
-    <h2 class="section-title">Data Lainnya</h2>
-
-    <div class="form-group" data-field="agama">
-      <label>Agama <span class="req">*</span></label>
-      <select id="agama" name="agama">
-        <option value="">Pilih agama</option>
-        <option>Islam</option><option>Kristen</option><option>Katolik</option>
-        <option>Hindu</option><option>Buddha</option><option>Konghucu</option><option>Lainnya</option>
-      </select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group hidden" id="agamaLainnyaGroup" data-field="agama_lainnya">
-      <label>Sebutkan Agama <span class="req">*</span></label>
-      <input type="text" id="agama_lainnya" name="agama_lainnya" placeholder="Tulis agama Anda">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="pendidikan">
-      <label>Pendidikan Terakhir <span class="req">*</span></label>
-      <select id="pendidikan" name="pendidikan">
-        <option value="">Pilih pendidikan</option>
-        <option>Tidak Sekolah</option><option>SD</option><option>MI</option><option>SMP</option>
-        <option>MTs</option><option>SMA</option><option>SMK</option><option>MA</option>
-        <option>Paket C</option><option>S1</option><option>Lainnya</option>
-      </select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group hidden" id="pendidikanLainnyaGroup" data-field="pendidikan_lainnya">
-      <label>Sebutkan Jenjang Pendidikan <span class="req">*</span></label>
-      <input type="text" id="pendidikan_lainnya" name="pendidikan_lainnya" placeholder="Contoh: D3">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="asal_sekolah">
-      <label>Nama Sekolah / Institusi <span class="req">*</span></label>
-      <input type="text" id="asal_sekolah" name="asal_sekolah" placeholder="Masukkan nama sekolah">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="jurusan">
-      <label>Jurusan <span class="req">*</span></label>
-      <input type="text" id="jurusan" name="jurusan" placeholder="Contoh: Teknik Komputer dan Jaringan">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="kontak_darurat">
-      <label>Kontak Darurat (Nomor HP Orang Terdekat) <span class="req">*</span></label>
-      <input type="tel" id="kontak_darurat" name="kontak_darurat" class="num" inputmode="numeric" maxlength="13" placeholder="Contoh: 081234567890">
-      <div class="hint">Diawali 0, terdiri dari 10–13 digit.</div>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="kk">
-      <label>Nomor Kartu Keluarga (KK) Terbaru <span class="req">*</span></label>
-      <input type="tel" id="kk" name="kk" class="num" inputmode="numeric" maxlength="16" placeholder="16 digit Nomor KK">
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="ibu_kandung">
-      <label>Nama Ibu Kandung <span class="req">*</span></label>
-      <input type="text" id="ibu_kandung" name="ibu_kandung" placeholder="Langsung nama lengkap ibu">
-      <div class="error"></div>
-    </div>
-
-    <h2 class="section-title">Data Alamat (Sesuai KTP)</h2>
-
-    <div class="alert" id="regionError"></div>
-
-    <div class="two">
-      <div class="form-group" data-field="rt">
-        <label>RT <span class="req">*</span></label>
-        <input type="tel" id="rt" name="rt" class="num" inputmode="numeric" maxlength="3" placeholder="001">
-        <div class="hint">3 digit. Contoh: 001</div>
-        <div class="error"></div>
-      </div>
-      <div class="form-group" data-field="rw">
-        <label>RW <span class="req">*</span></label>
-        <input type="tel" id="rw" name="rw" class="num" inputmode="numeric" maxlength="3" placeholder="001">
-        <div class="hint">3 digit. Contoh: 001</div>
-        <div class="error"></div>
-      </div>
-    </div>
-
-    <div class="form-group" data-field="provinsi">
-      <label>Provinsi <span class="req">*</span></label>
-      <select id="provinsi" name="provinsi"><option value="">Memuat provinsi...</option></select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="kabupaten">
-      <label>Kabupaten / Kota <span class="req">*</span></label>
-      <select id="kabupaten" name="kabupaten" disabled><option value="">Pilih provinsi terlebih dahulu</option></select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="kecamatan">
-      <label>Kecamatan <span class="req">*</span></label>
-      <select id="kecamatan" name="kecamatan" disabled><option value="">Pilih kabupaten terlebih dahulu</option></select>
-      <div class="error"></div>
-    </div>
-
-    <div class="form-group" data-field="kelurahan">
-      <label>Desa / Kelurahan <span class="req">*</span></label>
-      <select id="kelurahan" name="kelurahan" disabled><option value="">Pilih kecamatan terlebih dahulu</option></select>
-      <div class="error"></div>
-    </div>
-
-    <div class="btn-row">
-      <button type="button" class="btn-primary" id="nextBtn">Lanjutkan</button>
-    </div>
-  </form>
-  </div>
-
-  <!-- ================= PREVIEW ================= -->
-  <div class="card hidden" id="previewCard">
-    <div class="notice">
-      <strong>⚠️ PERIKSA KEMBALI DATA ANDA</strong><br>
-      Pastikan data sudah benar dan sesuai KTP, KK, dan buku tabungan. Jika ada yang salah klik <strong>Perbaiki</strong>,
-      jika sudah benar klik <strong>Kirim Data</strong>.
-    </div>
-    <div class="preview" id="previewContent"></div>
-    <div class="alert" id="submitError"></div>
-    <div class="btn-row">
-      <button type="button" class="btn-secondary" id="backBtn">Perbaiki</button>
-      <button type="button" class="btn-primary" id="submitBtn">Kirim Data</button>
-    </div>
-    <div class="loading" id="submitLoading">Menyimpan data...</div>
-  </div>
-
-  <!-- ================= SUCCESS ================= -->
-  <div class="card hidden" id="successCard">
-    <div class="success">
-      <div class="icon">✓</div>
-      <h2 style="color:#287044;margin:0 0 10px">Data Berhasil Dikirim</h2>
-      <p style="color:var(--muted)">Terima kasih. Data Anda sudah tersimpan.</p>
-    </div>
-  </div>
-
-</div>
-
-<script>
-/* =================================================
-   KONFIGURASI  -> ganti dengan URL Web App Apps Script
-================================================= */
-const API_URL = "PASTE_URL_WEB_APP_APPS_SCRIPT_DI_SINI";
-
-const $ = (id) => document.getElementById(id);
-const val = (id) => $(id).value.replace(/\s+/g, " ").trim();
-
-const TANPA_SEKOLAH = ["Tidak Sekolah"];
-const TANPA_JURUSAN = ["Tidak Sekolah", "SD", "MI", "SMP", "MTs"];
-
-/* =================================================
-   API
-================================================= */
-async function apiGet(params) {
-  const res = await fetch(API_URL + "?" + new URLSearchParams(params).toString());
-  const json = await res.json();
-  if (!json.success) throw new Error(json.message || "Permintaan gagal.");
-  return json.data;
-}
-
-async function apiPost(payload) {
-  // text/plain agar tidak memicu preflight CORS pada Apps Script
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload)
-  });
-  return res.json();
-}
-
-/* =================================================
-   ANGKA SAJA
-================================================= */
-document.querySelectorAll(".num").forEach((el) => {
-  el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, ""); });
-});
-
-/* =================================================
-   VALIDASI
-================================================= */
-const namaRegex = /^[A-Za-zÀ-ÿ\s.'\-]+$/;
-const hurufCount = (s) => s.replace(/[^A-Za-zÀ-ÿ]/g, "").length;
-
-function cekNama(v, label) {
-  if (!v) return label + " wajib diisi.";
-  if (/\d/.test(v)) return label + " tidak boleh mengandung angka.";
-  if (!namaRegex.test(v)) return label + " hanya boleh berisi huruf.";
-  if (hurufCount(v) < 3) return label + " minimal 3 huruf.";
-  return "";
-}
-
-const rules = {
-  id_card: (v) => /^\d{10}$/.test(v) ? "" : "Nomor ID Card harus tepat 10 angka.",
-  nama: (v) => cekNama(v, "Nama lengkap"),
-  nik: (v) => /^\d{16}$/.test(v) ? "" : "Nomor KTP harus tepat 16 angka.",
-  bank: (v) => v ? "" : "Bank wajib dipilih.",
-  no_rekening: (v) => /^\d{6,20}$/.test(v) ? "" : "Nomor rekening harus 6–20 angka.",
-  nama_rekening: (v) => cekNama(v, "Nama pemilik rekening"),
-  rekening_milik_sendiri: () => $("rekening_milik_sendiri").checked ? "" : "Anda harus menyatakan rekening milik sendiri.",
-  agama: (v) => v ? "" : "Agama wajib dipilih.",
-  agama_lainnya: (v) => val("agama") === "Lainnya" ? cekNama(v, "Agama") : "",
-  pendidikan: (v) => v ? "" : "Pendidikan terakhir wajib dipilih.",
-  pendidikan_lainnya: (v) => {
-    if (val("pendidikan") !== "Lainnya") return "";
-    if (!v) return "Jenjang pendidikan wajib diisi.";
-    if (v.length < 2) return "Jenjang pendidikan minimal 2 karakter.";
-    if (!/^[A-Za-z0-9\s.\-]+$/.test(v)) return "Jenjang pendidikan hanya boleh huruf dan angka.";
-    return "";
-  },
-  asal_sekolah: (v) => {
-    if (TANPA_SEKOLAH.includes(val("pendidikan"))) return "";
-    return v ? "" : "Nama sekolah wajib diisi.";
-  },
-  jurusan: (v) => {
-    if (TANPA_JURUSAN.includes(val("pendidikan"))) return "";
-    return v ? "" : "Jurusan wajib diisi.";
-  },
-  kontak_darurat: (v) => /^0\d{9,12}$/.test(v) ? "" : "Nomor HP harus diawali 0 dan terdiri dari 10–13 digit.",
-  kk: (v) => /^\d{16}$/.test(v) ? "" : "Nomor KK harus tepat 16 angka.",
-  ibu_kandung: (v) => {
-    if (/\bibu\b/i.test(v)) return "Tidak perlu menulis kata 'ibu', langsung nama lengkap ibunya.";
-    return cekNama(v, "Nama ibu kandung");
-  },
-  rt: (v) => /^\d{3}$/.test(v) ? "" : "RT harus tepat 3 angka. Contoh: 001.",
-  rw: (v) => /^\d{3}$/.test(v) ? "" : "RW harus tepat 3 angka. Contoh: 001.",
-  provinsi: (v) => v ? "" : "Provinsi wajib dipilih.",
-  kabupaten: (v) => v ? "" : "Kabupaten/Kota wajib dipilih.",
-  kecamatan: (v) => v ? "" : "Kecamatan wajib dipilih.",
-  kelurahan: (v) => v ? "" : "Desa/Kelurahan wajib dipilih."
-};
-
-function showError(id, msg) {
-  const group = $(id).closest(".form-group");
-  group.classList.toggle("invalid", !!msg);
-  group.querySelector(".error").textContent = msg || "";
-}
-
-function validateField(id) {
-  const msg = rules[id](val(id));
-  showError(id, msg);
-  return !msg;
-}
-
-Object.keys(rules).forEach((id) => {
-  const el = $(id);
-  ["input", "change", "blur"].forEach((ev) => el.addEventListener(ev, () => validateField(id)));
-});
-
-function validateAll() {
-  let ok = true;
-  Object.keys(rules).forEach((id) => { if (!validateField(id)) ok = false; });
-  return ok;
-}
-
-/* =================================================
-   PENDIDIKAN -> aturan sekolah & jurusan
-================================================= */
-function setAuto(el, disabled) {
-  if (disabled) {
-    el.value = "-";
-    el.disabled = true;
-  } else {
-    el.disabled = false;
-    if (el.value === "-") el.value = "";
-  }
-}
-
-$("agama").addEventListener("change", () => {
-  const lain = val("agama") === "Lainnya";
-  $("agamaLainnyaGroup").classList.toggle("hidden", !lain);
-  if (!lain) { $("agama_lainnya").value = ""; showError("agama_lainnya", ""); }
-});
-
-$("pendidikan").addEventListener("change", () => {
-  const p = val("pendidikan");
-  const lain = p === "Lainnya";
-  $("pendidikanLainnyaGroup").classList.toggle("hidden", !lain);
-  if (!lain) { $("pendidikan_lainnya").value = ""; showError("pendidikan_lainnya", ""); }
-  setAuto($("asal_sekolah"), TANPA_SEKOLAH.includes(p));
-  setAuto($("jurusan"), TANPA_JURUSAN.includes(p));
-  validateField("asal_sekolah");
-  validateField("jurusan");
-});
-
-/* =================================================
-   WILAYAH (via Apps Script -> wilayah.id)
-================================================= */
-const wil = {
-  provinsi:  { el: $("provinsi"),  type: "province", next: "kabupaten", label: "provinsi" },
-  kabupaten: { el: $("kabupaten"), type: "regency",  next: "kecamatan", label: "kabupaten / kota" },
-  kecamatan: { el: $("kecamatan"), type: "district", next: "kelurahan", label: "kecamatan" },
-  kelurahan: { el: $("kelurahan"), type: "village",  next: null,        label: "desa / kelurahan" }
-};
-const wilOrder = ["provinsi", "kabupaten", "kecamatan", "kelurahan"];
-const wilPrompt = {
-  provinsi: "Pilih provinsi", kabupaten: "Pilih kabupaten / kota",
-  kecamatan: "Pilih kecamatan", kelurahan: "Pilih desa / kelurahan"
-};
-const wilWait = {
-  kabupaten: "Pilih provinsi terlebih dahulu",
-  kecamatan: "Pilih kabupaten terlebih dahulu",
-  kelurahan: "Pilih kecamatan terlebih dahulu"
-};
-
-function fillSelect(el, text, data) {
-  el.innerHTML = "";
-  el.add(new Option(text, ""));
-  (data || []).forEach((d) => el.add(new Option(d.name, d.id)));
-}
-
-function resetBelow(key) {
-  const idx = wilOrder.indexOf(key);
-  for (let i = idx + 1; i < wilOrder.length; i++) {
-    const k = wilOrder[i];
-    fillSelect(wil[k].el, wilWait[k]);
-    wil[k].el.disabled = true;
-    showError(k, "");
-  }
-}
-
-function regionError(msg) {
-  const box = $("regionError");
-  box.textContent = msg || "";
-  box.style.display = msg ? "block" : "none";
-}
-
-async function loadChildren(key, parentId) {
-  const w = wil[key];
-  fillSelect(w.el, "Memuat " + w.label + "...");
-  w.el.disabled = true;
-  regionError("");
-  try {
-    const data = await apiGet({ action: "wilayah", type: w.type, id: parentId || "" });
-    fillSelect(w.el, wilPrompt[key], data);
-    w.el.disabled = false;
-  } catch (err) {
-    fillSelect(w.el, "Gagal memuat " + w.label);
-    regionError("Gagal mengambil data " + w.label + ": " + err.message + ". Muat ulang halaman lalu coba lagi.");
-  }
-}
-
-wilOrder.slice(0, 3).forEach((key) => {
-  wil[key].el.addEventListener("change", () => {
-    resetBelow(key);
-    const id = wil[key].el.value;
-    if (id) loadChildren(wil[key].next, id);
   });
 });
 
+// Muat daftar provinsi saat halaman dibuka.
 loadChildren("provinsi", "");
 
 const selText = (id) => {
@@ -1121,6 +603,7 @@ const selText = (id) => {
 function collect() {
   return {
     website: $("form").website.value,
+    data_benar: $("data_benar").checked,
     id_card: val("id_card"),
     nama: val("nama"),
     nik: val("nik"),
@@ -1165,7 +648,8 @@ function buildPreview(d) {
     ["Desa/Kelurahan", d.kelurahan_nama],
     ["Kecamatan", d.kecamatan_nama],
     ["Kabupaten/Kota", d.kabupaten_nama],
-    ["Provinsi", d.provinsi_nama]
+    ["Provinsi", d.provinsi_nama],
+    ["Pernyataan Data", d.data_benar ? "Saya menyatakan data sudah benar" : "Belum menyatakan"]
   ];
   const box = $("previewContent");
   box.innerHTML = "";
