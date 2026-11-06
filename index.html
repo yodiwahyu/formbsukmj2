@@ -316,6 +316,9 @@ button:disabled{opacity:.6;cursor:not-allowed}
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyL35LneMPU5gRmnCV8FP05q57UCnuM4LRNcLPu4uXV03AAM86GzUzAKwQIxRbRSGK-oA/exec";
 
+// Sumber data wilayah (dicoba langsung dulu, lalu cadangan lewat Apps Script)
+const WILAYAH_API = "https://wilayah.id/api";
+
 const $ = (id) => document.getElementById(id);
 const val = (id) => $(id).value.replace(/\s+/g, " ").trim();
 
@@ -458,17 +461,17 @@ $("pendidikan").addEventListener("change", () => {
 });
 
 /* =================================================
-   WILAYAH INDONESIA - API WILAYAH.ID
-   Data wilayah diambil langsung dari wilayah.id.
-   Penyimpanan formulir tetap melalui Apps Script (apiPost).
+   WILAYAH INDONESIA
+   1) Coba langsung ke wilayah.id (cepat)
+   2) Jika gagal (CORS / jaringan / timeout), pakai
+      cadangan lewat Apps Script (getWilayah)
 ================================================= */
-const WILAYAH_API = "https://wilayah.id/api";
 
 const wil = {
-  provinsi:  { el: $("provinsi"),  endpoint: "provinces", next: "kabupaten", label: "provinsi" },
-  kabupaten: { el: $("kabupaten"), endpoint: "regencies", next: "kecamatan", label: "kabupaten / kota" },
-  kecamatan: { el: $("kecamatan"), endpoint: "districts", next: "kelurahan", label: "kecamatan" },
-  kelurahan: { el: $("kelurahan"), endpoint: "villages", next: null, label: "desa / kelurahan" }
+  provinsi:  { el: $("provinsi"),  endpoint: "provinces", type: "province", next: "kabupaten", label: "provinsi" },
+  kabupaten: { el: $("kabupaten"), endpoint: "regencies", type: "regency",  next: "kecamatan", label: "kabupaten / kota" },
+  kecamatan: { el: $("kecamatan"), endpoint: "districts", type: "district", next: "kelurahan", label: "kecamatan" },
+  kelurahan: { el: $("kelurahan"), endpoint: "villages",  type: "village",  next: null,        label: "desa / kelurahan" }
 };
 
 const wilOrder = ["provinsi", "kabupaten", "kecamatan", "kelurahan"];
@@ -484,20 +487,25 @@ const wilWait = {
   kelurahan: "Pilih kecamatan terlebih dahulu"
 };
 
-// Penanda request mencegah hasil request lama menimpa pilihan terbaru.
-const wilRequest = {
-  provinsi: 0,
-  kabupaten: 0,
-  kecamatan: 0,
-  kelurahan: 0
-};
+// Penanda request: hasil request lama tidak boleh menimpa pilihan terbaru.
+const wilRequest = { provinsi: 0, kabupaten: 0, kecamatan: 0, kelurahan: 0 };
+
+// Cache sederhana di memori agar pilihan ulang tidak memanggil API lagi.
+const wilCache = {};
+
+function normalizeList(list) {
+  return list
+    .map((i) => ({
+      code: String(i.code !== undefined ? i.code : i.id),
+      name: String(i.name)
+    }))
+    .filter((i) => i.code && i.name);
+}
 
 function fillSelect(el, placeholder, data) {
   el.innerHTML = "";
   el.add(new Option(placeholder, ""));
-  (data || []).forEach((item) => {
-    el.add(new Option(item.name, item.code));
-  });
+  (data || []).forEach((item) => el.add(new Option(item.name, item.code)));
 }
 
 function resetBelow(key) {
@@ -520,43 +528,71 @@ function regionError(msg) {
   box.style.display = msg ? "block" : "none";
 }
 
-async function fetchWilayah(endpoint) {
-  const url = WILAYAH_API + "/" + endpoint + ".json";
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { "Accept": "application/json" }
+async function fetchDirect(key, parentCode) {
+  const w = wil[key];
+  let url = WILAYAH_API + "/" + w.endpoint;
+  if (key !== "provinsi") url += "/" + encodeURIComponent(parentCode);
+  url += ".json";
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      signal: ctrl.signal
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const json = await res.json();
+    if (!json || !Array.isArray(json.data)) throw new Error("Format data tidak sesuai.");
+
+    return normalizeList(json.data);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchViaProxy(key, parentCode) {
+  const w = wil[key];
+  const data = await apiGet({
+    action: "wilayah",
+    type: w.type,
+    id: key === "provinsi" ? "" : parentCode
   });
+  if (!Array.isArray(data)) throw new Error("Format data tidak sesuai.");
+  return normalizeList(data);
+}
 
-  if (!response.ok) {
-    throw new Error("Server wilayah.id memberikan respons HTTP " + response.status + ".");
+async function fetchWilayah(key, parentCode) {
+  const cacheKey = key + "_" + (parentCode || "");
+  if (wilCache[cacheKey]) return wilCache[cacheKey];
+
+  let data;
+  try {
+    data = await fetchDirect(key, parentCode);
+  } catch (errDirect) {
+    console.warn("Akses langsung wilayah.id gagal, memakai Apps Script:", errDirect);
+    data = await fetchViaProxy(key, parentCode);
   }
 
-  const json = await response.json();
-
-  if (!json || !Array.isArray(json.data)) {
-    throw new Error("Format data wilayah tidak sesuai.");
-  }
-
-  return json.data;
+  wilCache[cacheKey] = data;
+  return data;
 }
 
 async function loadChildren(key, parentCode) {
   const w = wil[key];
   const requestId = ++wilRequest[key];
 
-  let endpoint = w.endpoint;
-  if (key !== "provinsi") {
-    endpoint += "/" + encodeURIComponent(parentCode);
-  }
-
   fillSelect(w.el, "Memuat " + w.label + "...", []);
   w.el.disabled = true;
   regionError("");
 
   try {
-    const data = await fetchWilayah(endpoint);
+    const data = await fetchWilayah(key, parentCode);
 
-    // Abaikan hasil jika pengguna sudah mengganti wilayah induk.
+    // Abaikan jika pengguna sudah mengganti wilayah induk.
     if (requestId !== wilRequest[key]) return;
 
     fillSelect(w.el, wilPrompt[key], data);
@@ -581,7 +617,6 @@ wilOrder.slice(0, 3).forEach((key) => {
     resetBelow(key);
 
     const parentCode = wil[key].el.value;
-    validateField(key);
 
     if (parentCode) {
       loadChildren(wil[key].next, parentCode);
