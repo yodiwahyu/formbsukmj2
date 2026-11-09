@@ -113,6 +113,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
     <div class="form-group" data-field="nik">
       <label>Nomor KTP <span class="req">*</span></label>
       <input type="tel" id="nik" name="nik" class="num" inputmode="numeric" maxlength="16" placeholder="16 digit NIK">
+      <div class="hint" id="nikInfo" style="color:#9a3412;display:none"></div>
       <div class="error"></div>
     </div>
 
@@ -373,10 +374,19 @@ function cekNama(v, label) {
   return "";
 }
 
+// Menyimpan hasil cek bentrok dari server: { key: "idcard|nik", msg: "..." }
+// Pesan hilang otomatis jika ID Card atau NIK diubah (key tidak cocok lagi).
+const konflik = { id_card: null, nik: null };
+const kunciKonflik = () => val("id_card") + "|" + val("nik");
+
 const rules = {
-  id_card: (v) => /^\d{10}$/.test(v) ? "" : "Nomor ID Card harus tepat 10 angka.",
+  id_card: (v) => !/^\d{10}$/.test(v)
+    ? "Nomor ID Card harus tepat 10 angka."
+    : (konflik.id_card && konflik.id_card.key === kunciKonflik() ? konflik.id_card.msg : ""),
   nama: (v) => cekNama(v, "Nama lengkap"),
-  nik: (v) => /^\d{16}$/.test(v) ? "" : "Nomor KTP harus tepat 16 angka.",
+  nik: (v) => !/^\d{16}$/.test(v)
+    ? "Nomor KTP harus tepat 16 angka."
+    : (konflik.nik && konflik.nik.key === kunciKonflik() ? konflik.nik.msg : ""),
   no_hp: (v) => /^0\d{9,12}$/.test(v) ? "" : "Nomor HP aktif harus diawali 0 dan terdiri dari 10–13 digit.",
   bank: (v) => v ? "" : "Bank wajib dipilih.",
   no_rekening: (v) => /^\d{6,20}$/.test(v) ? "" : "Nomor rekening harus 6–20 angka.",
@@ -437,6 +447,45 @@ function validateAll() {
   Object.keys(rules).forEach((id) => { if (!validateField(id)) ok = false; });
   return ok;
 }
+
+/* =================================================
+   CEK BENTROK LANGSUNG SAAT MENGETIK
+   Dijalankan setelah ID Card (10 angka) dan NIK (16 angka)
+   sama-sama terisi. Hanya untuk kenyamanan: penjaga utama
+   tetap cek di server (doPost, dalam lock) saat kirim.
+   - ID Card & NIK sama dengan data lama -> info: data akan diganti
+   - Salah satu sama, yang lain beda      -> pesan merah, tidak bisa lanjut
+================================================= */
+function cekBentrokLangsung() {
+  const idc = val("id_card"), nik = val("nik");
+  const info = $("nikInfo");
+
+  konflik.id_card = null;
+  konflik.nik = null;
+  info.style.display = "none";
+  info.textContent = "";
+
+  if (idc.length !== 10 || nik.length !== 16) return;
+
+  const key = idc + "|" + nik;
+  apiGet({ action: "cek", id_card: idc, nik: nik }).then((hasil) => {
+    if (kunciKonflik() !== key) return;      // isian sudah berubah, abaikan
+    if (!hasil) return;
+
+    if (hasil.status === "id_beda_nik") {
+      konflik.id_card = { key: key, msg: hasil.message };
+    } else if (hasil.status === "nik_beda_id") {
+      konflik.nik = { key: key, msg: hasil.message };
+    } else if (hasil.status === "sama") {
+      info.textContent = hasil.message;
+      info.style.display = "block";
+    }
+    validateField("id_card");
+    validateField("nik");
+  }).catch(() => { /* diam saja, server tetap mengecek saat kirim */ });
+}
+$("id_card").addEventListener("input", cekBentrokLangsung);
+$("nik").addEventListener("input", cekBentrokLangsung);
 
 /* =================================================
    PENDIDIKAN -> aturan sekolah & jurusan
@@ -744,7 +793,7 @@ $("submitBtn").addEventListener("click", async () => {
       err.style.display = "block";
     }
   } catch (e) {
-    err.textContent = "Terjadi kesalahan: " + e.message;
+    err.textContent = "Koneksi terputus atau server sedang sibuk. Data mungkin sudah tersimpan. Silakan tekan Kirim Data sekali lagi.";
     err.style.display = "block";
   } finally {
     btn.disabled = false;
