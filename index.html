@@ -71,6 +71,14 @@ button:disabled{opacity:.6;cursor:not-allowed}
   .prow{grid-template-columns:1fr}.btn-row{flex-direction:column}
   input,select{font-size:16px!important}
 }
+  .closed-notice{background:#fff;border:1px solid #fecaca;border-left:6px solid #dc2626;border-radius:18px;
+  padding:26px 22px;margin-bottom:20px;text-align:center;box-shadow:0 7px 24px rgba(220,38,38,.08)}
+.closed-notice .closed-icon{width:60px;height:60px;margin:0 auto 14px;border-radius:50%;background:#fee2e2;
+  color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:bold}
+.closed-notice h3{margin:0 0 8px;font-size:20px;color:#991b1b}
+.closed-notice p{margin:0 0 16px;font-size:14px;color:#4b5563}
+.closed-notice a.closed-link{display:inline-block;padding:12px 22px;border-radius:10px;font-weight:700;
+  font-size:14px;color:#fff;text-decoration:none;background:linear-gradient(135deg,#3b8d55,#286d40);word-break:break-all}
 </style>
 </head>
 
@@ -86,10 +94,20 @@ button:disabled{opacity:.6;cursor:not-allowed}
     <h1>Formulir Data Karyawan</h1>
     <h2>PT Kanindo Makmur Jaya - Factory 2</h2>
     <p>Silakan isi data Anda dengan lengkap dan benar sesuai dokumen resmi.</p>
+
+    <div class="closed-notice">
+  <div class="closed-icon">!</div>
+  <h3>Formulir Ini Sudah Ditutup</h3>
+  <p>Pengisian data melalui formulir ini sudah tidak dibuka lagi.<br>
+     Bagi yang terlambat mengisi, silakan mengisi data melalui situs resmi berikut:</p>
+  <a class="closed-link" href="https://bsu.bpjsketenagakerjaan.go.id" target="_blank" rel="noopener">
+    bsu.bpjsketenagakerjaan.go.id
+  </a>
+</div>
   </div>
 
   <!-- ================= FORM ================= -->
-  <div class="card" id="formCard">
+  <div class="card hidden" id="formCard">
   <form id="form" novalidate autocomplete="off">
 
     <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off"><!-- honeypot -->
